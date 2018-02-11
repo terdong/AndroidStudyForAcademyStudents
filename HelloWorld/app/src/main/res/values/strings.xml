@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">HelloWorld</string>
+    <string name="random_name_generator">랜덤 이름 발생기</string>
+    <string name="button_name">이름 생성</string>
+</resources>
