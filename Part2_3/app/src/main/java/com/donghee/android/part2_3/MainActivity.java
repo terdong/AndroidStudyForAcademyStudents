@@ -18,6 +18,7 @@ public class MainActivity extends AppCompatActivity {
 
         final Button button = (Button)findViewById(R.id.button6);
 
+
         TextView tv = (TextView)findViewById(R.id.textView5);
         tv.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -42,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
  /*       TextView tv = (TextView)findViewById(R.id.tvTitle);
         tv.setText("타이틀");*/
 
-/*        LinearLayout linear = new LinearLayout(this);
+        LinearLayout linear = new LinearLayout(this);
 
         Button bt = new Button(this);
         bt.setText("Button 1");
@@ -52,6 +53,6 @@ public class MainActivity extends AppCompatActivity {
         bt2.setText("Button 2");
         linear.addView(bt2);
 
-        setContentView(linear);*/
+        setContentView(linear);
     }
 }

@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Part2_3_1</string>
+    <string name="text_view_00">안드로이드 수업 자료는 https://github.com/terdong/AndroidStudyForAcademyStudents 입니다.</string>
+    <string name="hint_00">본인의 이름을 입력해주세요.</string>
+    <string name="hint_01">비밀번호를 입력해주세요.</string>
+</resources>
