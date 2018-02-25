@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">DroppingWordGame</string>
+    <string name="edit_text_hint">단어를 입력해 주세요.</string>
+    <string name="button_name">게임시작</string>
+    <string name="score_title">점수: </string>
+</resources>
