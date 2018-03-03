@@ -6,19 +6,24 @@ import android.support.constraint.ConstraintLayout;
 import android.support.constraint.ConstraintSet;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.text.Layout;
-import android.transition.Transition;
 import android.transition.TransitionManager;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Random;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -42,9 +47,10 @@ public class MainActivity extends AppCompatActivity {
 
     // 점수 기록용 변수
     private int score;
-
-    // 문제용 단어 TextView 배열(나중에 List로 바꿀 예정)
-    private TextView[] textViews;
+    // 최고 점수
+    private int highScore;
+    // 목숨
+    private int life;
 
     // 메인 Layout
     private ConstraintLayout layout;
@@ -52,53 +58,82 @@ public class MainActivity extends AppCompatActivity {
     // ConstraintLayout 의 view들의 속성을 바꿀 때 사용하는 객체 변수
     private ConstraintSet set = new ConstraintSet();
 
-//    private ArrayList<TextView> quizList;
-//    private ArrayList<TextView> List;
+    // 목숨을 표시할 TextView
+    private TextView textViewLife;
+    // 최고 점수를 표시할 TextView
+    private TextView textViewHighScore;
+
+    // 문제용 TextView 관리용 셋
+    private HashSet<TextView> hashSetQuiz = new HashSet<>();
+    private Queue<TextView> queueSpare = new LinkedList<>();
 
     // 문제용 단어들의 위치값을 바꾸기 위해 사용된 핸들러
     private WordHandler handler;
 
     // 핸들러를 상속 받아 구현한 inner class
     private static class WordHandler extends Handler {
-        private float[] textViewPosition = new float[3];
-        private TextView[] textViews;
+        private static final int DEFAULT_QUIZ_GENERATION_COUNT = 3;
+
+        private HashMap<TextView, Float> hashMapTextViewPosition = new HashMap<>();
         private ConstraintLayout layout;
         private ConstraintSet set;
+        private Random random;
+        private HashSet<TextView> hashSetQuiz;
+        private Queue<TextView> queueSpare;
+        private String[] wordList;
+
+        private boolean isPlay;
+
+        private int quizGenerationCount = DEFAULT_QUIZ_GENERATION_COUNT;
 
         private final WeakReference<MainActivity> mainActivityWeakReference;
-        public WordHandler(MainActivity mainActivity){
+
+        public WordHandler(MainActivity mainActivity) {
             mainActivityWeakReference = new WeakReference(mainActivity);
-            textViews = mainActivity.textViews;
             layout = mainActivity.layout;
             set = mainActivity.set;
-            initialize();
+            random = mainActivity.random;
+            hashSetQuiz = mainActivity.hashSetQuiz;
+            queueSpare = mainActivity.queueSpare;
+            wordList = mainActivity.wordList;
         }
 
-        // 문제용 단어들을 초기화 시키는 메소드
-        public void initialize(){
-            setWords();
-            for (int i = 0; i < textViews.length; ++i) {
-                textViewPosition[i] = 0;
-                set.setVerticalBias(textViews[i].getId(), textViewPosition[i]);
+        // 게임 시작시 호출되는 메소드
+        public void initialize() {
+            if (!hashSetQuiz.isEmpty()) {
+                for (TextView tv : hashSetQuiz) {
+                    queueSpare.offer(tv);
+                }
+                hashSetQuiz.clear();
             }
-            set.applyTo(layout);
-        }
 
-        // 플레이어가 맞추거나 끝까지 떨어진 단어들을 다시 원래 위치로 이동 시키는 메소드
-        public void resetTextView(int i){
-            textViewPosition[i] = 0;
-            set.setVerticalBias(textViews[i].getId(), textViewPosition[i]);
-            set.applyTo(layout);
-        }
+            hashMapTextViewPosition.clear();
 
-        // 문제용 단어 TextView에 임의의 단어를 설정하는 메소드
-        private void setWords(){
-            MainActivity mainActivity = mainActivityWeakReference.get();
-            String [] wordList = mainActivity.wordList;
-            Random random = mainActivity.random;
-            for (int i = 0; i < textViews.length; ++i) {
-                textViews[i].setText(wordList[random.nextInt(wordList.length)]);
+            for (TextView tv : queueSpare) {
+                initializeTextView(tv);
+                hashMapTextViewPosition.put(tv, new Float(0));
             }
+
+            isPlay = true;
+        }
+
+        public void resetTextView(TextView tv) {
+
+            initializeTextView(tv);
+            hashMapTextViewPosition.put(tv, new Float(0));
+
+            queueSpare.offer(tv);
+        }
+
+        // 문제용 TextView 셋팅
+        public void initializeTextView(TextView tv) {
+
+            tv.setText("");
+
+            int id = tv.getId();
+            set.setVerticalBias(id, 0);
+            set.setHorizontalBias(id, random.nextFloat());
+            set.applyTo(layout);
         }
 
         // 이 메소드를 이용하여 단어의 위치 값을 조정함
@@ -106,22 +141,64 @@ public class MainActivity extends AppCompatActivity {
         public void handleMessage(Message msg) {
 //                super.handleMessage(msg);
 
-            TransitionManager.beginDelayedTransition(layout);
+            if (!queueSpare.isEmpty() && --quizGenerationCount <= 0) {
+                quizGenerationCount = DEFAULT_QUIZ_GENERATION_COUNT;
 
-            for (int i = 0; i < textViews.length; ++i) {
-                textViewPosition[i] += 0.1f;
-                if (textViewPosition[i] <= 1) {
-                    set.setVerticalBias(textViews[i].getId(), textViewPosition[i]);
-                }else{
+                TextView tv = queueSpare.poll();
+                tv.setText(wordList[random.nextInt(wordList.length)]);
 
-                }
-                Log.d(TAG,String.format("textViewPosition[i] = %s", textViewPosition[i]));
+                hashSetQuiz.add(tv);
             }
 
-            set.applyTo(layout);
+            if (!hashSetQuiz.isEmpty()) {
+                TransitionManager.beginDelayedTransition(layout);
+                for (TextView tv : hashSetQuiz) {
+                    Float highPosition = hashMapTextViewPosition.get(tv);
+                    highPosition += 0.1f;
+                    hashMapTextViewPosition.put(tv, highPosition);
 
-            sendEmptyMessageDelayed(0, 1000);
+                    if (highPosition <= 1) {
+                        set.setVerticalBias(tv.getId(), highPosition);
+                    } else {
+                        resetTextView(tv);
+                        MainActivity mainActivity = mainActivityWeakReference.get();
+                        mainActivity.decreaseLife();
+                        if (mainActivity.isDead()) {
+                            Toast toast = Toast.makeText(mainActivity, "GAME OVER", Toast.LENGTH_LONG);
+                            toast.setGravity(Gravity.CENTER, 0, 0);
+                            toast.show();
+                            mainActivity.setHighScore();
+                            isPlay = false;
+                        }
+                    }
+                }
+                set.applyTo(layout);
+            }
+
+            if (!queueSpare.isEmpty()) {
+                for (TextView tv : queueSpare) {
+                    hashSetQuiz.remove(tv);
+                }
+            }
+
+            if (isPlay) {
+                sendEmptyMessageDelayed(0, 1000);
+            }
         }
+    }
+
+    private void decreaseLife() {
+        String result = String.valueOf(--life);
+        textViewLife.setText(result);
+    }
+
+    private boolean isDead() {
+        return life <= 0;
+    }
+
+    private void setHighScore() {
+        highScore = score;
+        textViewHighScore.setText(String.valueOf(highScore));
     }
 
     // Activity가 실행 될때 최초로 호출 되는 메소드(main 메소드와 비슷함)
@@ -131,60 +208,65 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // 위젯 가지고 오기
-        textViews = new TextView[3];
-        textViews[0] = findViewById(R.id.textView);
-        textViews[1] = findViewById(R.id.textView2);
-        textViews[2] = findViewById(R.id.textView3);
-
         layout = findViewById(R.id.mainLayout);
-
         set.clone(layout);
 
-        final Button buttonStart = findViewById(R.id.button);
-        final Button buttonStop = findViewById(R.id.button2);
+        queueSpare.offer((TextView) findViewById(R.id.textView));
+        queueSpare.offer((TextView) findViewById(R.id.textView2));
+        queueSpare.offer((TextView) findViewById(R.id.textView3));
+        queueSpare.offer((TextView) findViewById(R.id.textView4));
+
         EditText editText = findViewById(R.id.editText);
+        final Button buttonStart = findViewById(R.id.button1);
         final TextView textViewScore = findViewById(R.id.textViewScore);
-        textViewScore.setText(String.valueOf(score));
+        textViewHighScore = findViewById(R.id.textViewHighScore);
+        textViewLife = findViewById(R.id.textViewLife);
 
         //위젯에 값 및 이벤트 설정하기
+        textViewScore.setText(String.valueOf(score));
+        textViewHighScore.setText(String.valueOf(highScore));
+        textViewLife.setText(String.valueOf(life));
+
         buttonStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
-                // 게임 시작 코드
-                //Log.d(TAG, "on click buttona");
+                score = 0;
+                life = 3;
+
+                textViewScore.setText(String.valueOf(score));
+                textViewLife.setText(String.valueOf(life));
+
+                handler.removeMessages(0);
+                handler.initialize();
                 handler.sendEmptyMessage(0);
             }
         });
 
-        buttonStop.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                // 게임 시작 코드
-                //Log.d(TAG, "on click buttona");
-                handler.removeMessages(0);
-                handler.initialize();
-            }
-        });
-
-
         editText.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
-                String inputText = v.getText().toString();
-                v.setText("");
-                Log.d(TAG, String.format("inputText = %s. actionId = %d", inputText, actionId));
 
-                for (int i = 0; i < textViews.length; ++i) {
-                    if (inputText.equals(textViews[i].getText())) {
-                        textViewScore.setText(String.valueOf(++score));
+                boolean result = true;
+                switch (actionId) {
+                    default:
+                        result = false;
+                    case EditorInfo.IME_ACTION_DONE:
+                        String inputText = v.getText().toString();
+                        v.setText("");
+                        //Log.d(TAG, String.format("inputText = %s", inputText));
 
-                        handler.resetTextView(i);
-                    }
+                        for (TextView tv : hashSetQuiz) {
+                            if (inputText.equals(tv.getText())) {
+                                textViewScore.setText(String.valueOf(++score));
+
+                                handler.resetTextView(tv);
+                                break;
+                            }
+                        }
+                        break;
                 }
-
-                return false;
+                return result;
             }
         });
 
