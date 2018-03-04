@@ -141,6 +141,8 @@ public class MainActivity extends AppCompatActivity {
         public void handleMessage(Message msg) {
 //                super.handleMessage(msg);
 
+
+
             if (!queueSpare.isEmpty() && --quizGenerationCount <= 0) {
                 quizGenerationCount = DEFAULT_QUIZ_GENERATION_COUNT;
 
